@@ -73,7 +73,7 @@ void loop() {
     mySerial.write(byte4);
     mySerial.write(byte5);
     mySerial.write(byte6);
-    readytosend = 1;
+    readytosend = 1; //1 will continually send data. Change to 0 for sending only once per serial input
 
   }
 }
