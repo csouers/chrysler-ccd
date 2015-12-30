@@ -4,11 +4,6 @@ J.Christensen 27Apr2012
 
 SCI Code Chris Souers
 
-Nov 13 2015 - Setup 1MHz square wave generation (untested) and Initial SCI/UART setup.
-Nov 22 2015 - Added Code for Idle and Control Pin monitoring and Serial Printing
-Nov 23 2015 - Initial practical testing. Assigned D9 as output to stop serial bus crashing.
-
-
 */
 
 #include <SoftwareSerial.h>
