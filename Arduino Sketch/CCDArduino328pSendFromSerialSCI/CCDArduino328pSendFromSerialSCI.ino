@@ -6,6 +6,8 @@ SCI Code - Send Command
 
 By Chris Souers
 
+Sends commands without regard to if the data was seen on the bus or not. Does not check for reflected bytes as it should. Needs improved upon, but works okay for now. Should not be a problem when bus is idle/asleep.
+
 */
 
 #include <SoftwareSerial.h>
@@ -38,8 +40,8 @@ void setup() {
   pinMode(ledPin, OUTPUT);                //prep builtin led pin
 
 
-  Serial.begin(57600);
-  mySerial.begin(7812.5);
+  Serial.begin(57600); //have had issues at 115200, so 57600 seems to work fine.
+  mySerial.begin(7812.5); //for serial IC
 
   DDRB = _BV(DDB1);                  //set OC1A/PB1 as output (Arduino pin D9, DIP pin 15)
   TCCR1A = _BV(COM1A0);              //toggle OC1A on compare match
@@ -62,6 +64,8 @@ void loop() {
     byte5 = Serial.parseInt();
     byte6 = Serial.parseInt();
     readytosend = Serial.parseInt();
+    
+    //To send data, open serial monitor. Input data string, in decimal, followed by 1.
   }
 
   delay(100);
