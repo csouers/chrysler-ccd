@@ -1,7 +1,4 @@
 /*
-Use Timer/Counter1 to generate a 1MHz square wave on Arduino pin 9.
-J.Christensen 27Apr2012
-
 SCI Code - Send Command
 
 By Chris Souers
@@ -9,6 +6,40 @@ By Chris Souers
 Sends commands without regard to if the data was seen on the bus or not. Does not check for reflected bytes as it should. Needs improved upon, but works okay for now. Should not be a problem when bus is idle/asleep.
 
 */
+
+// 1MHz generator for CDP68HC68S1 IC
+#include <TimerOne.h> //https://pjrc.com/teensy/td_libs_TimerOne.html
+const int PWMPin = 9; //PWM~ Pin#
+const int Period = 1; // Period 1 us = 1Mhz, 2 us = 500 kHz, 3 us = 333 kHz, 40 us = 25 kHz
+const int dutyCycle = 512; // 0 - 1023   512 = dutyCycle 50
+/* Download:  Included with the Teensyduino Installer
+Latest TimerOne on Github https://github.com/PaulStoffregen/TimerOne
+Latest TimerThree on Github https://github.com/PaulStoffregen/TimerThree
+Hardware Requirements
+These libraries use Timer1 and Timer3.
+Each timer controls PWM pins. While uses these libraries, analogWrite() to those pins will not work normally,
+but you can use the library pwm() function.
+
+
+Board ------ TimerOne PWM Pins  
+Teensy 3.1 ------- 3, 4 
+Teensy 3.0 ------- 3, 4  
+Teensy 2.0 ------- 4, 14, 15
+Teensy++ 2.0 ----- 25, 26, 27
+Arduino Uno ------ 9, 10
+Arduino Leonardo - 9, 10, 11
+Arduino Mega ----- 11, 12, 13
+Wiring-S --------- 4, 5  
+Sanguino --------- 12, 13
+
+
+Board ------ TimerThree PWM Pins
+Teensy 3.1 ------- 25, 32
+Teensy 2.0 ------- 9
+Teensy++ 2.0 ----- 14, 15, 16
+Arduino Leonardo - 5
+Arduino Mega ----- 2, 3, 5
+/ 1MHz generator */
 
 #include <SoftwareSerial.h>
 
@@ -43,11 +74,9 @@ void setup() {
   Serial.begin(57600); //have had issues at 115200, so 57600 seems to work fine.
   mySerial.begin(7812.5); //for serial IC
 
-  DDRB = _BV(DDB1);                  //set OC1A/PB1 as output (Arduino pin D9, DIP pin 15)
-  TCCR1A = _BV(COM1A0);              //toggle OC1A on compare match
-  OCR1A = 7;                         //top value for counter
-  TCCR1B = _BV(WGM12) | _BV(CS10);   //CTC mode, prescaler clock/1
-
+  // setup 1MHz generator for CDP68HC68S1 IC
+  Timer1.initialize(Period);
+  Timer1.pwm(PWMPin, dutyCycle); ////PWM~ Pin# 9
 
 
   //attachInterrupt(digitalPinToInterrupt(triggerPin), send, CHANGE);
@@ -65,7 +94,8 @@ void loop() {
     byte6 = Serial.parseInt();
     readytosend = Serial.parseInt();
     
-    //To send data, open serial monitor. Input data string, in decimal, followed by 1.
+    //To send data, open serial monitor. Input data string, in decimal, with spaces in between each followed by 1.
+    //Example: "206 116 151 238 190 133 1"
   }
 
   delay(100);
