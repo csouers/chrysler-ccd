@@ -65,7 +65,7 @@ SoftwareSerial mySerial(6, 7); // RX, TX
 
 void setup() {
 
-  pinMode(9, OUTPUT);                //prepare pin 9 for clock output
+  pinMode(PWMPin, OUTPUT);                //prepare pin 9 for clock output
   pinMode(idlePin, INPUT);            //set idle pin for input
   pinMode(controlPin, INPUT);         //set control pin for input
   pinMode(ledPin, OUTPUT);                //prep builtin led pin
