@@ -53,7 +53,7 @@ SoftwareSerial mySerial(6, 7); // RX, TX
 
 void setup() {
  
-  pinMode(9, OUTPUT);                //prepare pin 9 for clock output
+  pinMode(PWMPin, OUTPUT);                //prepare pin 9 for clock output
   pinMode(idlePin, INPUT);            //set idle pin for input
   pinMode(controlPin, INPUT);         //set control pin for input
   pinMode(ledPin, OUTPUT);                //prep builtin led pin
@@ -72,6 +72,7 @@ void setup() {
 
 
 void loop() {
+  digitalWrite(ledPin, LOW);
 if (mySerial.available()){ //Waits for available data
   
 Serial.print(mySerial.read()); //Prints the data as it comes in
@@ -89,7 +90,9 @@ Serial.print(" "); //Prints a space as a delimiter
 }
 
 
-void endofstring(){ Serial.print("\n"); } //When IDLE changes, print a new line. Two new lines per message string. One high to low, another low to high. Have had issues with only going to low and strings running together. Likely a timing/speed issue.
+void endofstring(){ Serial.print("\n");
+  digitalWrite(ledPin, HIGH);
+} //When IDLE changes, print a new line. Two new lines per message string. One high to low, another low to high. Have had issues with only going to low and strings running together. Likely a timing/speed issue.
 
 
 
