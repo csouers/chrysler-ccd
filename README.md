@@ -1,10 +1,10 @@
 # chrysler-ccd
 
-Intital code by Chris Souers. Contributions by Chris O.
+Collection of Arduino sketches for interacting with the data bus utilized on various Chrysler vehicles circa 1980-2000. 
 
-Basic code to read and write to the Chrysler CCD bus. Write code is not completely finished, but is generally functional. Will require rewrite to conform to bus communication specifications.
+Basic code to read the Chrysler CCD bus via UART. Write code is being worked on by Chris O and Chris (Ascension) at the moment 3-26-2016.
 
-1MHz clock generation done via TimerOne library.
+1MHz clock generation done via external oscillator (PN MXO45HS-3C-1M0000 - available @ DigiKey).
 
 Sketch utilizes Intersil CDP68HC68S1E. Is available through eBay and AliExpress
 

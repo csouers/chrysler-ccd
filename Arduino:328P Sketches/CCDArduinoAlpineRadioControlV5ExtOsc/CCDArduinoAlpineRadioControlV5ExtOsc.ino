@@ -13,18 +13,15 @@
   Right Down - VOL DOWN
   Left Up - NEXT TRACK
   Left Down - PREVIOUS TRACK
-  Left Middle - PRESET/ALBUM UP (or down? Will have to check functionality on car and make appropriate changes.)
-
-  Update Jan 22 - This code works, but with interruptions from the IDLE pin.
-  Thus, I'm assuming Alpine commands aren't received in their entirety and nothing happens.
-  Less bus traffic helps, key in accessory for example.
-  Code verfied with LED functionality. Works as expected
-  May need to offload Alpine functions to separate microcontroller communication with the CCD Module over UART or I2c.
+  Left Middle - PRESET/ALBUM UP (actually goes down in the A-Z list.)
 
 
 */
 //--------------------------Pin Assignment and Binary Coding for Alpine headunit-----------------------//
 #define alpPin 4
+#define idlePin 2
+#define controlPin 3
+#define ledPin 13
 
 boolean volUp[48] = {1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1};
 boolean volDn[48] = {1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1};
@@ -38,72 +35,40 @@ boolean trkDn[48] = {1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0,
 //boolean entPlay[48] = {1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1, 0, 1};
 //boolean bandProg[48] = {1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 0, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 1, 0, 1, 1, 0, 1, 0, 1, 1, 1, 1, 1, 1, 0, 1, 1, 1, 0, 1, 0, 1, 0, 1, 0, 1};
 
-// 1MHz generator for CDP68HC68S1 IC
-#include <TimerOne.h> //https://pjrc.com/teensy/td_libs_TimerOne.html
-const int PWMPin = 9; //PWM~ Pin#
-const int Period = 1; // Period 1 us = 1Mhz, 2 us = 500 kHz, 3 us = 333 kHz, 40 us = 25 kHz
-const int dutyCycle = 512; // 0 - 1023   512 = dutyCycle 50
-/* Download:  Included with the Teensyduino Installer
-  Latest TimerOne on Github https://github.com/PaulStoffregen/TimerOne
-  Latest TimerThree on Github https://github.com/PaulStoffregen/TimerThree
-  Hardware Requirements
-  These libraries use Timer1 and Timer3.
-  Each timer controls PWM pins. While uses these libraries, analogWrite() to those pins will not work normally,
-  but you can use the library pwm() function.
-
-
-  Board ------ TimerOne PWM Pins
-  Teensy 3.1 ------- 3, 4
-  Teensy 3.0 ------- 3, 4
-  Teensy 2.0 ------- 4, 14, 15
-  Teensy++ 2.0 ----- 25, 26, 27
-  Arduino Uno ------ 9, 10
-  Arduino Leonardo - 9, 10, 11
-  Arduino Mega ----- 11, 12, 13
-  Wiring-S --------- 4, 5
-  Sanguino --------- 12, 13
-
-
-  Board ------ TimerThree PWM Pins
-  Teensy 3.1 ------- 25, 32
-  Teensy 2.0 ------- 9
-  Teensy++ 2.0 ----- 14, 15, 16
-  Arduino Leonardo - 5
-  Arduino Mega ----- 2, 3, 5
-  / 1MHz generator */
-
-
-#include <SoftwareSerial.h>
-
-int idlePin = 2;      //Idle pin /INT0 on Atmega328P
-int controlPin = 3;   //Control pin /INT1 on Atmega328P. Not being used as an interrupt right now
-int ledPin = 13;      //Onboard LED pin incase we need it
+//#include <SoftwareSerial.h>
+#include <AltSoftSerial.h>
+#include <avr/wdt.h>
 
 byte ccd_buff[8]; /* CCD receive buffer / MAX 8 Bytes */
 int ccd_buff_ptr; /* CCD receive buffer pointer */
 volatile byte IdleOnOffFlag = 0; //variable for the idle pin. Must be volatile due to being part of interrupt
 boolean DataComplete = false; //variable for declaring end of message string. Can be True or False.
 
-SoftwareSerial mySerial(6, 7); // RX, TX
+//SoftwareSerial mySerial(6, 7); // RX, TX
+AltSoftSerial mySerial; // RX, TX
+
 
 void setup() {
  
 
-  pinMode(PWMPin, OUTPUT);                 //prepare pin 9 for clock output
   pinMode(idlePin, INPUT);            //set idle pin for input
   //pinMode(controlPin, INPUT);         //set control pin for input
   pinMode(ledPin, OUTPUT);            //prep builtin led pin
-  pinMode(4, OUTPUT);                 //Alpine control pin
+  digitalWrite(ledPin, LOW);          //Turn D13 LED Off
+  pinMode(alpPin, OUTPUT);                 //Alpine control pin
 
-  digitalWrite(ledPin, LOW);          //Set LED to low once. May be unnecessary but doesn't hurt anything.
-
-   // setup 1MHz generator for CDP68HC68S1 IC
-  Timer1.initialize(Period);
-  Timer1.pwm(PWMPin, dutyCycle); ////PWM~ Pin# 10
-
+  watchdogSetup();
+ 
   mySerial.begin(7812.5); //for serial IC
 
   attachInterrupt(digitalPinToInterrupt(idlePin), endofstring, RISING);
+}
+void watchdogSetup() {
+  cli(); // disable all interrupts 
+  wdt_reset(); // reset the WDT timer 
+  WDTCSR |= (1<<WDCE) | (1<<WDE); 
+  WDTCSR = (0<<WDIE) | (1<<WDE) | (0<<WDP3) | (1<<WDP2) | (1<<WDP1) | (0<<WDP0); //1000ms WDT timer
+  sei();
 }
 
 void endofstring() {
@@ -111,21 +76,26 @@ void endofstring() {
 }
 
 void loop() {
-  while (mySerial.available()) {
+  wdt_reset();
 
+  while (mySerial.available()) {
     byte data = mySerial.read();
     ccd_buff[ccd_buff_ptr] = data;    // read & store character
     ccd_buff_ptr++;                   // increment the pointer to the next byte
   }
   if (IdleOnOffFlag == 1) { // check the CDP68HC68S1 IDLE pin interrupt flag, change from Low to High.
+    noInterrupts();
+    digitalWrite(ledPin, HIGH); //heartbeat check
     process_data(); // GOTO process_data loop
+    digitalWrite(ledPin, LOW); //heartbeat check
     IdleOnOffFlag = 0; //RESET IDLE PIN FLAG
     ccd_buff_ptr = 0; // RESET buffer pointer to byte 0 for data to be overwritten
+    interrupts();
   }
 }
 
 void process_data() {
-
+  
   switch (ccd_buff[0])          // decide what to do from first byte / ID BYTE
   {
 
@@ -173,12 +143,11 @@ void process_data() {
   ccd_buff[3] = 0;
   ccd_buff[4] = 0;
   ccd_buff[5] = 0;
+
 }
 
 //---------VOL UP-----------------------------------------------
 void volUpSend() {
-  noInterrupts(); // Disables interrupts
-  digitalWrite(ledPin,HIGH);
   //first send 8ms high
   digitalWrite(alpPin, HIGH);
   delayMicroseconds(8000); // New 8ms Delay
@@ -200,17 +169,13 @@ void volUpSend() {
   }
   // send 41ms low
   digitalWrite(alpPin, LOW);
-  /*for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
+  for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
     delayMicroseconds(1000);
-  }*/
-  digitalWrite(ledPin,LOW);
-  interrupts(); // Re-enables interrupts
+  }
 }
 
 //---------VOL DOWN-----------------------------------------------
 void volDnSend() {
-  noInterrupts(); // Disables interrupts
-  digitalWrite(ledPin,HIGH);
   //first send 8ms high
   digitalWrite(alpPin, HIGH);
   delayMicroseconds(8000); // New 8ms Delay
@@ -232,17 +197,13 @@ void volDnSend() {
   }
   // send 41ms low
   digitalWrite(alpPin, LOW);
-  /*for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
+  for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
     delayMicroseconds(1000);
-  }*/
-  digitalWrite(ledPin,LOW);
-  interrupts(); // Re-enables interrupts
+  }
 }
 
 //---------Next Track-----------------------------------------------
 void trkUpSend() {
-  noInterrupts(); // Disables interrupts
-  digitalWrite(ledPin,HIGH);
   //first send 8ms high
   digitalWrite(alpPin, HIGH);
   delayMicroseconds(8000); // New 8ms Delay
@@ -264,17 +225,13 @@ void trkUpSend() {
   }
   // send 41ms low
   digitalWrite(alpPin, LOW);
-  /*for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
+  for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
     delayMicroseconds(1000);
-  }*/
-  digitalWrite(ledPin,LOW);
-  interrupts(); // Re-enables interrupts
+  }
 }
 
 //---------Previous Track----------------------------------------------
 void trkDnSend() {
-  noInterrupts(); // Disables interrupts
-  digitalWrite(ledPin,HIGH);
   //first send 8ms high
   digitalWrite(alpPin, HIGH);
   delayMicroseconds(8000); // New 8ms Delay
@@ -296,17 +253,13 @@ void trkDnSend() {
   }
   // send 41ms low
   digitalWrite(alpPin, LOW);
-  /*for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
+  for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
     delayMicroseconds(1000);
-  }*/
-  digitalWrite(ledPin,LOW);
-  interrupts(); // Re-enables interrupts
+  }
 }
 
 //---------NEXT DOWN----------------------------------------------
 void pstUpSend() {
-  noInterrupts(); // Disables interrupts
-  digitalWrite(ledPin,HIGH);
   //first send 8ms high
   digitalWrite(alpPin, HIGH);
   delayMicroseconds(8000); // New 8ms Delay
@@ -328,10 +281,8 @@ void pstUpSend() {
   }
   // send 41ms low
   digitalWrite(alpPin, LOW);
-  /*for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
+  for (unsigned int i = 0; i <= 41; i++) { //New 41ms Delay
     delayMicroseconds(1000);
-  }*/
-  digitalWrite(ledPin,LOW);
-  interrupts(); // Re-enables interrupts
+  }
 }
 

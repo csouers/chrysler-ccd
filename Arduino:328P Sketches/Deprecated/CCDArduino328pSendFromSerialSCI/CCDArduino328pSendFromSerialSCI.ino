@@ -111,21 +111,3 @@ void loop() {
 
   }
 }
-
-/*void send() {
-  idleStatus = digitalRead(idlePin);
-  if (idleStatus == 0) {
-    mySerial.write(byte1);        //sends the first byte
-    mySerial.write(byte2);
-    mySerial.write(byte3);
-    mySerial.write(byte4);
-    mySerial.write(byte5);
-    mySerial.write(byte6);
-    delay(2);
-
-
-  }
-
-}
-
-*/
