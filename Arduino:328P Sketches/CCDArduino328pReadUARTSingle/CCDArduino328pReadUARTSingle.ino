@@ -21,7 +21,7 @@ boolean DataComplete = false; //variable for declaring end of message string. Ca
 
 AltSoftSerial mySerial(6, 7); // RX, TX
 
-volatile byte selectbyte = 228; //ID byte to print to the serial monitor
+volatile byte selectbyte = 134; //ID byte to print to the serial monitor
 
 void setup() {
 
